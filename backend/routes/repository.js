@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const data = require('../dummyData.json'); // Load dummy data
 
-// Endpoint: Get Random Issue
+// Endpoint: Get random repository from dummy data
 router.get('/random', (req, res) => {
   const randomIndex = Math.floor(Math.random() * data.length);
-  const randomIssue = data[randomIndex];
-  res.json(randomIssue);
+  const randomRepo = data[randomIndex];
+  res.json(randomRepo);
 });
+
 
 module.exports = router;

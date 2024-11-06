@@ -9,51 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 const languages = ["javascript", "python", "bash"]
+const apiBaseUrl = "http://localhost:8080/api"
 
-const dummyFileStructure = [
-  {
-    "filename": "README.md",
-    "content": "# Simple Python Project\n\nThis is a simple Python project example."
-  },
-  {
-    "filename": "requirements.txt",
-    "content": "requests==2.25.1\nflask==1.1.2"
-  },
-  {
-    "filename": ".gitignore",
-    "content": "__pycache__/\n.env\n*.pyc\n"
-  },
-  {
-    "filename": "main.py",
-    "content": "from src.module import example_function\n\nif __name__ == '__main__':\n    example_function()"
-  },
-  {
-    "filename": "config/settings.py",
-    "content": "import os\n\nDEBUG = os.getenv('DEBUG', True)\nDATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///db.sqlite3')"
-  },
-  {
-    "filename": "src/__init__.py",
-    "content": "# Initialize the src package\n"
-  },
-  {
-    "filename": "src/module.py",
-    "content": "def example_function():\n    print('This is an example function.')\n"
-  },
-  {
-    "filename": "tests/test_module.py",
-    "content": "from src.module import example_function\n\ndef test_example_function():\n    assert example_function() is None"
-  },
-  {
-    "filename": "docs/usage.md",
-    "content": "# Usage\n\nTo use this project, run:\n\n```bash\npython main.py\n```"
-  },
-  {
-    "filename": "scripts/setup.sh",
-    "content": "#!/bin/bash\n\n# Set up virtual environment\npython3 -m venv env\nsource env/bin/activate\npip install -r requirements.txt"
-  }
-];
-
-function createFileTree(files) {
+// Function to create file tree structure
+function createFileTree(files: any[]) {
   const root = { name: 'root', children: {} };
 
   files.forEach(file => {
@@ -80,7 +39,7 @@ function FileTree({ node, onSelect, level = 0 }) {
 
   return (
     <div style={{ marginLeft: `${level * 20}px` }}>
-      <div 
+      <div
         className={`flex items-center cursor-pointer py-1 px-2 rounded hover:bg-[#30363d] ${hasChildren ? 'font-semibold' : ''}`}
         onClick={() => {
           if (hasChildren) {
@@ -108,14 +67,16 @@ function FileTree({ node, onSelect, level = 0 }) {
   );
 }
 
-export default function EditorTab() {
+
+export default function EditorTab({ fileStructure, setFileStructure, isRecording }: { fileStructure: any[], setFileStructure: any, isRecording: boolean }) {
   const [language, setLanguage] = useState("python");
   const [code, setCode] = useState("# Write your code here");
+  const [edited, setEdited] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const consoleRef = useRef<HTMLDivElement>(null);
-  const fileTree = createFileTree(dummyFileStructure);
+  const fileTree = createFileTree(fileStructure);
 
   useEffect(() => {
     if (consoleRef.current) {
@@ -125,22 +86,64 @@ export default function EditorTab() {
 
   const handleEditorChange = (value: string | undefined) => {
     setCode(value || "");
+    setEdited(true);
   };
 
   const handleRun = async () => {
     setIsRunning(true);
     setOutput("Running code...\n");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    updateFileContent(code);
 
-    // Set logic for running code here (can be failure)
-    setOutput((prev) => prev + "Code execution completed.\nOutput: Hello, World!");
+    fetch(`${apiBaseUrl}/code/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, language })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setOutput("Code execution result: \n" + data.console);
+
+        if (isRecording) {
+          if (edited) {
+            recordTrace("edit_code", { diff: "+++ print(\"Hello World\")" });
+          }
+          recordTrace("execute_code", { execution_result: data.result });
+        }
+      })
     setIsRunning(false);
+    setEdited(false);
   };
 
+  const recordTrace = async (action, details) => {
+    await fetch(`${apiBaseUrl}/trace/record`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...details })
+    });
+  };
+
+
+  // Incomplete logic due to complex logic for file selection
   const handleFileSelect = (file) => {
+    updateFileContent(code);
     setSelectedFile(file);
     setCode(file.content);
+    setEdited(false);
     setLanguage(file.name.endsWith('.py') ? 'python' : 'javascript');
+  };
+
+
+  const updateFileContent = (content) => {
+    if (!selectedFile) return;
+
+    const newFileStructure = fileStructure.map(file => {
+      if (file.filename === selectedFile.name) {
+        return { ...file, content: content };
+      }
+      return file;
+    });
+
+    setFileStructure(newFileStructure);
   };
 
   return (
@@ -178,7 +181,7 @@ export default function EditorTab() {
         <Button
           onClick={handleRun}
           disabled={isRunning}
-          className="bg-[#238636] hover:bg-[#2ea043] text-white px-6 h-9 rounded-md transition-colors duration-200"
+          className="bg-black hover:bg-gray-500 text-white px-6 h-9 rounded-full transition-colors duration-200 border-blue-500 border"
         >
           {isRunning ? (
             <Loader2 className="h-4 w-4 animate-spin mr-2" />

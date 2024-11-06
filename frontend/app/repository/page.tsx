@@ -5,16 +5,51 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CircleDot, FileCode, GitPullRequest, Play, Square } from "lucide-react"
 import EditorTab from "@/components/EditorTab"
+import IssueTab from "@/components/IssueTab"
 
-
+const apiBaseUrl = "http://localhost:8080/api"
 
 export default function RepositoryPage() {
   const [isRecording, setIsRecording] = useState(false)
+  const [repository, setRepository] = useState(null);
+  const [issue, setIssue] = useState([]);
+  const [fileStructure, setFileStructure] = useState([]);
 
   const toggleRecording = () => {
-    setIsRecording(!isRecording)
-  }
+    if (!isRecording) {
+      startSession();
+    } else {
+      endSession();
+    }
+    setIsRecording(!isRecording);
+  };
 
+  const startSession = async () => {
+    await fetch(`${apiBaseUrl}/trace/start-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ issue: issue.issue, initial_code: "<initial code here>" })  
+    });
+  };
+
+  const endSession = async () => {
+    await fetch(`${apiBaseUrl}/trace/end-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pull_request: "<pull request details here>" }) 
+    }).then(() => alert("Traces Saved Successfully! 🎉"));
+  };
+
+  // fetch repository data
+  useEffect(() => {
+    fetch(`${apiBaseUrl}/repository/random`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRepository(data);
+        setIssue(data.issue);
+        setFileStructure(data.repository);
+      });
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
@@ -27,11 +62,10 @@ export default function RepositoryPage() {
           <Button
             onClick={toggleRecording}
             variant={isRecording ? "destructive" : "default"}
-            className={`flex items-center ${
-              isRecording
+            className={`flex items-center ${isRecording
                 ? "bg-red-600 hover:bg-red-700"
                 : "bg-[#238636] hover:bg-[#2ea043]"
-            }`}
+              }`}
           >
             {isRecording ? (
               <>
@@ -61,13 +95,14 @@ export default function RepositoryPage() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="issues">
-            <div className="bg-[#0d1117] border border-[#30363d] rounded-md p-4">
-              <h2 className="text-lg font-semibold mb-4">Issues</h2>
-              <p>Issues list will be displayed here.</p>
-            </div>
+            <IssueTab issue={issue}/>
           </TabsContent>
           <TabsContent value="editor">
-            <EditorTab />
+          <EditorTab
+              fileStructure={fileStructure}
+              setFileStructure={setFileStructure}
+              isRecording={isRecording}
+            />
           </TabsContent>
         </Tabs>
       </main>
