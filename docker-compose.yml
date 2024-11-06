@@ -1,0 +1,23 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # Map host port 3000 to container port 3000
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:8080  # Set backend URL to container name for internal networking
+    depends_on:
+      - backend  # Ensure the backend starts first
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"  # Map host port 8080 to container port 8080
+    volumes:
+      - ./backend/traces:/app/traces  # Persist trace data
