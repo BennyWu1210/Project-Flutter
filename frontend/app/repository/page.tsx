@@ -10,16 +10,11 @@ import EditorTab from "@/components/EditorTab"
 
 export default function RepositoryPage() {
   const [isRecording, setIsRecording] = useState(false)
-  
-
-  
 
   const toggleRecording = () => {
     setIsRecording(!isRecording)
   }
 
-
-  
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
